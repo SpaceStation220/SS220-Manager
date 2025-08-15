@@ -55,7 +55,7 @@ def embed_player_info(ingame_player_info: Paradise.Player | None, player_links: 
     if ingame_player_info:
         embed.description += (
             f"\n"
-            f"**Ранг:** {ingame_player_info.lastadminrank}\n"
+            f"**Ранг:** {ingame_player_info.last_admin_rank()}\n"
             f"**Стаж:** {ingame_player_info.lastseen - ingame_player_info.firstseen}\n"
             f"**Первое появление:** {ingame_player_info.firstseen}\n"
             f"**Последнее появление: **{ingame_player_info.lastseen}"

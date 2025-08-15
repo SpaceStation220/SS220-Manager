@@ -2,7 +2,7 @@ import logging
 
 import enum
 from datetime import datetime
-from typing import Sequence
+from typing import Sequence, Optional
 from sqlalchemy import String, Text, func
 from sqlalchemy import Integer
 from sqlalchemy import DateTime
@@ -15,6 +15,8 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import foreign
 
 from common.helpers import *
 from db.db_base import SSDatabase
@@ -66,9 +68,21 @@ class Paradise(DBSchema, SSDatabase):
         lastseen: Mapped[datetime] = mapped_column(DateTime)
         ip: Mapped[str] = mapped_column(String(18))
         computerid: Mapped[str] = mapped_column(String(32))
-        lastadminrank: Mapped[str] = mapped_column(String(32))
         exp: Mapped[str] = mapped_column(Text)
         species_whitelist: Mapped[str] = mapped_column(Text)
+
+        admin: Mapped["Paradise.Admin"] = relationship(
+            "Admin",
+            lazy="joined",
+            innerjoin=False,
+            primaryjoin=lambda: foreign(Paradise.Player.ckey) == Paradise.Admin.ckey,
+            viewonly=True,
+        )
+
+        def last_admin_rank(self):
+            if self.admin and self.admin.rank:
+                return self.admin.display_rank or self.admin.rank.name
+            return "Игрок"
 
         def __repr__(self) -> str:
             return f"Player(id={self.id!r}, ckey={self.ckey!r})"
@@ -159,6 +173,38 @@ class Paradise(DBSchema, SSDatabase):
                 f"Watch(ckey={self.ckey!r},"
                 f" reason={self.reason!r},"
                 f" a_ckey={self.adminckey!r})"
+            )
+
+    class AdminRank(Base):
+        __tablename__ = "admin_ranks"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        name: Mapped[str] = mapped_column(String(32))
+        default_permissions: Mapped[int] = mapped_column(Integer())
+
+        def __repr__(self) -> str:
+            return f"AdminRank(id={self.id!r}, name={self.name!r})"
+
+    class Admin(Base):
+        __tablename__ = "admin"
+        id: Mapped[int] = mapped_column(Integer(), primary_key=True)
+        ckey: Mapped[str] = mapped_column(String(32))
+        display_rank: Mapped[str | None] = mapped_column(String(32), nullable=True)
+        permissions_rank: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+        extra_permissions: Mapped[int] = mapped_column(Integer(), default=0)
+        removed_permissions: Mapped[int] = mapped_column(Integer(), default=0)
+
+        rank: Mapped["Paradise.AdminRank"] = relationship(
+            "AdminRank",
+            lazy="joined",
+            innerjoin=False,
+            primaryjoin=lambda: foreign(Paradise.Admin.permissions_rank) == Paradise.AdminRank.id,
+            viewonly=True
+        )
+
+        def __repr__(self) -> str:
+            return (
+                f"Admin(id={self.id!r}, ckey={self.ckey!r}, display_rank={self.display_rank!r}, "
+                f"permissions_rank={self.permissions_rank!r})"
             )
 
     def get_player(self, ckey: str) -> Player | None:
