@@ -2,7 +2,7 @@ import logging
 
 import enum
 from datetime import datetime
-from typing import Sequence, Optional
+from typing import Sequence
 from sqlalchemy import String, Text, func
 from sqlalchemy import Integer
 from sqlalchemy import DateTime
