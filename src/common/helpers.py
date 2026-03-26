@@ -1,18 +1,8 @@
 import types
 import re
-from typing import Literal
 import base64
 from PIL import Image, ImageFile
 from io import BytesIO
-
-ALL_PLAYABLE_SPECIES = Literal[
-    "Human", "Diona", "Drask",
-    "Grey", "Kidan", "Machine",
-    "Nian", "Plasmaman", "Skrell",
-    "Slime People", "Tajaran",
-    "Unathi", "Vox", "Vulpkanin",
-    "Nucleation"
-]
 
 CL_BODY = re.compile(
     r"(:cl:|🆑)[ \t]*(?P<author>.+?)?\s*\n(?P<content>(.|\n)*?)\n/(:cl:|🆑)", re.MULTILINE)

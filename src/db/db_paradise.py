@@ -69,7 +69,6 @@ class Paradise(DBSchema, SSDatabase):
         ip: Mapped[str] = mapped_column(String(18))
         computerid: Mapped[str] = mapped_column(String(32))
         exp: Mapped[str] = mapped_column(Text)
-        species_whitelist: Mapped[str] = mapped_column(Text)
 
         admin: Mapped["Paradise.Admin"] = relationship(
             "Admin",
@@ -246,29 +245,6 @@ class Paradise(DBSchema, SSDatabase):
         req = select(self.Note).where((self.Note.ckey == ckey)
                                       | (self.Note.adminckey == ckey)).order_by(self.Note.id.desc()).limit(amount)
         return self.execute_req(req)
-
-    def get_player_species_whitelist(self, ckey: str) -> str:
-        ckey = sanitize_ckey(ckey)
-        species_whitelist_req = select(self.Player.species_whitelist).where(
-            self.Player.ckey == ckey)
-        species_whitelist = self.execute_req(species_whitelist_req)
-        return species_whitelist
-
-    def set_player_species_whitelist(self, ckey: str, species_whitelist: str) -> Player:
-        ckey = sanitize_ckey(ckey)
-
-        req = select(self.Player).where(
-            self.Player.ckey == ckey)
-
-        with self.Session() as session:
-            session.expire_on_commit = False
-            with session.begin():
-                result = session.scalars(req).one_or_none()
-                if not result:
-                    return ERRORS.ERR_404
-                result.species_whitelist = species_whitelist
-
-        return result
 
     def push_changelog(self, cl: dict, number: int):
         with self.Session() as session:
