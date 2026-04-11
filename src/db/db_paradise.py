@@ -224,8 +224,12 @@ class Paradise(DBSchema, SSDatabase):
         return self.execute_req(req)
 
     def get_recent_bans(self) -> Sequence[Ban]:
-        req = select(self.Ban).where(self.Ban.exportable).order_by(
-            self.Ban.id.desc()).limit(50)
+        req = select(self.Ban).where(
+            self.Ban.exportable != 0,
+            ~((self.Ban.a_ckey == "@system") & (self.Ban.bantype == "SPECIES_PERMABAN"))
+        ).order_by(
+            self.Ban.id.desc()
+        ).limit(50)
         with self.Session() as session:
             session.expire_on_commit = False
             with session.begin():

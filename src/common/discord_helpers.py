@@ -157,12 +157,18 @@ def get_nice_bans(bans: Sequence[Paradise.Ban]) -> list[Embed]:
             case "JOB_PERMABAN":
                 ban_color = Color.purple()
                 ban.bantype = "Пермаджоббан"
+            case "SPECIES_PERMABAN":
+                ban_color = Color.purple()
+                ban.bantype = "Пермаксенобан"
             case "TEMPBAN":
                 ban_color = Color.orange()
                 ban.bantype = "Темпбан"
             case "JOB_TEMPBAN":
                 ban_color = Color.dark_blue()
                 ban.bantype = "Джоббан"
+            case "SPECIES_TEMPBAN":
+                ban_color = Color.dark_blue()
+                ban.bantype = "Ксенобан"
             case "BAN":
                 ban_color = Color.dark_red()
             case _:
