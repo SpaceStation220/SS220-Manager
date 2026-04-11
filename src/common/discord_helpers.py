@@ -41,6 +41,7 @@ SERVERS_NICE = {
 
 MAX_FIELD_LENGTH = 1024
 
+
 def embed_player_info(ingame_player_info: Paradise.Player | None, player_links: CentralPlayer | None, chars: Sequence[Paradise.Character]):
     if not player_links:
         return Embed(title="Дискорд игрока не привязан к игре.", color=Color.red())
@@ -79,6 +80,7 @@ def get_nice_player_chars(chars: Sequence[Paradise.Character]):
         f"`{char.slot}:` **{char.real_name}**\n{gender_to_emoji(char.gender)} {char.species} {char.age} лет"
         for char in chars
     )
+
 
 def add_character_info(embed: Embed, chars_info: str):
     if not len(chars_info):

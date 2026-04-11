@@ -288,7 +288,7 @@ def run_bot():
             except discord.NotFound:
                 await interaction.followup.send("игрок должен быть на сервере.")
                 return
-            status, wl = await CENTRAL.give_whitelist_discord(player.discord_id , interaction.user.id, server_type, duration_days)
+            status, wl = await CENTRAL.give_whitelist_discord(player.discord_id, interaction.user.id, server_type, duration_days)
         else:
             await interaction.followup.send("Нужно указать хотя бы один идентификатор игрока.")
             return
@@ -324,11 +324,11 @@ def run_bot():
             except discord.NotFound:
                 pass
         elif player_discord_user:
-            player_discord_id = player_discord_user.id    
+            player_discord_id = player_discord_user.id
         else:
             await interaction.followup.send("Нужно указать хотя бы один идентификатор игрока.")
             return
- 
+
         wl_ban = await CENTRAL.ban_whitelist_discord(player_discord_id, interaction.user.id, server_type, duration_days, reason)
         if player_discord_user:
             role_to_remove = discord.utils.get(interaction.guild.roles, id=config["central"]["server_types"][server_type])
