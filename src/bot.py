@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ext import tasks
 # Includes a lot of other internal libs
 from api.central import Central, Player
+from common.benefit_sync import sync_member_update
 from common.discord_helpers import *
 from db.connect import connect_database
 
@@ -31,7 +32,11 @@ XENOMOD_ROLES = [*HEAD_ADMIN_ROLES] + config["discord"]["roles"]["xenomod"]
 DEV_ROLES = [*HEAD_ADMIN_ROLES] + config["discord"]["roles"]["devs"]
 MISC_ROLES = config["discord"]["roles"]["servers"]
 
+BENEFIT_ROLE_TO_CAUSES: dict[int, set[str]] = {}
+for cause, role_id in config["central"].get("benefit_roles", {}).items():
+    BENEFIT_ROLE_TO_CAUSES.setdefault(int(role_id), set()).add(cause)
 CODER_ID = config["discord"]["mentions"]["coder"]
+
 
 CHANNEL_CACHE: dict[str, discord.TextChannel] = {}
 
@@ -51,8 +56,7 @@ REDIS = aioredis.from_url(config["redis"]["connection_string"])
 REDIS_SUB = REDIS.pubsub(ignore_subscribe_messages=True)
 REDIS_SUB_BINDINGS = {}
 CENTRAL = Central(config["central"]["endpoint"],
-                  config["central"]["bearer_token"],
-                  config["central"]["boosty_discord_id"])
+                  config["central"]["bearer_token"])
 
 
 def run_bot():
@@ -390,59 +394,15 @@ def run_bot():
 
     @client.event
     async def on_member_update(before: discord.Member, after: discord.Member):
-        if before.roles == after.roles:
-            return
-
-        # TODO: extract to a function handle_role_loss
-        negative_delta = set(before.roles) - set(after.roles)
-        donate_roles_removed = {role.id for role in negative_delta} & set(
-            map(int, config["central"]["donation_roles"].keys()))
-        if donate_roles_removed:
-            logging.info("User %s lost donate tier role in discord.", after.id)
-            await CENTRAL.remove_donate_tiers(after.id)
-            await CENTRAL.remove_donate_wls(after.id)
-
-        # TODO: extract to a function handle_role_gain
-        delta = set(after.roles) - set(before.roles)
-        donate_roles_added = {role.id for role in delta} & set(
-            map(int, config["central"]["donation_roles"].keys()))
-
-        if not donate_roles_added:
-            return
-
-        donate_tiers = [config["central"]["donation_roles"]
-                        [str(role)] for role in donate_roles_added]
-        tier_to_give = max(donate_tiers)
-
-        logging.info("User %s got donate tier %s role in discord.",
-                     after.id, tier_to_give)
-        await CENTRAL.give_donate_tier(after.id, tier_to_give, 7777)
-
-        if tier_to_give < config["central"]["min_donate_tier_wl"]:
-            return
-
-        for server_type in config["central"]["donate_gives_server_types"]:
-
-            status, wl = await CENTRAL.give_whitelist_discord(
-                after.id,
-                config["central"]["boosty_discord_id"],
-                server_type,
-                7777  # forever
-            )
-
-            if status == 409:
-                logging.info(
-                    "User %s couldnt get wl from donation due to ban", after.id)
-                return
-            logging.info("User %s got wl %s from donation", after.id, wl.id)
-
-            role_to_add = discord.utils.get(
-                after.guild.roles, id=config["central"]["server_types"][server_type])
-            if role_to_add is None:
-                logging.info(
-                    "User %s couldnt get wl from donation due to no role", after.id)
-                return
-            await after.add_roles(role_to_add)
+        await sync_member_update(
+            before,
+            after,
+            CENTRAL,
+            BENEFIT_ROLE_TO_CAUSES,
+            config["central"]["whitelist_server_types"],
+            config["central"]["benefit_tier_whitelist_threshold"],
+            client.user.id,
+        )
 
     async def on_player_link(entry: dict[bytes]):
         player_json = json.loads(entry["data"].decode())

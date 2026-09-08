@@ -6,21 +6,21 @@ log_level = 20 # INFO
 [central]
 endpoint = "http://127.0.0.1:8000"
 bearer_token = "12345678"
-min_donate_tier_wl = 2
 
-donate_gives_server_types = ["prime", "devtest"]
+benefit_tier_whitelist_threshold = 2
 
-boosty_discord_id = 12345678
+[central.whitelist_server_types]
+# benefit scope = server type
+bandastation = "prime"
+legacy = "prime"
 
 [central.server_types]
 # server_type = discord_role_id
 prime = 12345678
-devtest = 12345678
 
-[central.donation_roles]
-# Discord role id from boosty to donate tier
-1338876305554542644 = 1
-1338876331735121924 = 2
+[central.benefit_roles]
+# cause = Discord role id
+"developer@discord" = 12345678
 
 
 [db]
