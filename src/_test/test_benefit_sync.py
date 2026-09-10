@@ -59,20 +59,26 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
         )
 
         await sync_member_update(
-            Member(PLAYER_ID, []),
-            Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID)]),
-            central,
-            {DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
-            {BANDASTATION_SCOPE: PRIME_SERVER},
-            WHITELIST_THRESHOLD,
-            BOT_ID,
+            before=Member(PLAYER_ID, []),
+            after=Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID)]),
+            central=central,
+            role_to_causes={DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
+            whitelist_server_types={BANDASTATION_SCOPE: PRIME_SERVER},
+            threshold=WHITELIST_THRESHOLD,
+            admin_discord_id=BOT_ID,
         )
 
         central.grant_benefit.assert_awaited_once_with(
-            PLAYER_ID, DEVELOPER_CAUSE, "*", FOREVER_DAYS
+            discord_id=PLAYER_ID,
+            cause=DEVELOPER_CAUSE,
+            scope="*",
+            duration_days=FOREVER_DAYS,
         )
         central.give_whitelist_discord.assert_awaited_once_with(
-            PLAYER_ID, BOT_ID, PRIME_SERVER, FOREVER_DAYS
+            player_discord_id=PLAYER_ID,
+            admin_discord_id=BOT_ID,
+            server_type=PRIME_SERVER,
+            duration_days=FOREVER_DAYS,
         )
 
     async def test_adding_role_for_qualified_user_keeps_whitelist_unique(self):
@@ -82,13 +88,13 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
         )
 
         await sync_member_update(
-            Member(PLAYER_ID, []),
-            Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID)]),
-            central,
-            {DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
-            {BANDASTATION_SCOPE: PRIME_SERVER},
-            WHITELIST_THRESHOLD,
-            BOT_ID,
+            before=Member(PLAYER_ID, []),
+            after=Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID)]),
+            central=central,
+            role_to_causes={DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
+            whitelist_server_types={BANDASTATION_SCOPE: PRIME_SERVER},
+            threshold=WHITELIST_THRESHOLD,
+            admin_discord_id=BOT_ID,
         )
 
         central.grant_benefit.assert_awaited_once()
@@ -100,20 +106,23 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
         )
 
         await sync_member_update(
-            Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID)]),
-            Member(PLAYER_ID, []),
-            central,
-            {DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
-            {BANDASTATION_SCOPE: PRIME_SERVER},
-            WHITELIST_THRESHOLD,
-            BOT_ID,
+            before=Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID)]),
+            after=Member(PLAYER_ID, []),
+            central=central,
+            role_to_causes={DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
+            whitelist_server_types={BANDASTATION_SCOPE: PRIME_SERVER},
+            threshold=WHITELIST_THRESHOLD,
+            admin_discord_id=BOT_ID,
         )
 
         central.revoke_benefits.assert_awaited_once_with(
-            PLAYER_ID, DEVELOPER_CAUSE
+            discord_id=PLAYER_ID,
+            cause=DEVELOPER_CAUSE,
         )
         central.remove_whitelist_discord.assert_awaited_once_with(
-            PLAYER_ID, BOT_ID, PRIME_SERVER
+            player_discord_id=PLAYER_ID,
+            admin_discord_id=BOT_ID,
+            server_type=PRIME_SERVER,
         )
 
     async def test_removing_lower_grant_keeps_whitelist(self):
@@ -123,13 +132,13 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
         )
 
         await sync_member_update(
-            Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID)]),
-            Member(PLAYER_ID, []),
-            central,
-            {DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
-            {BANDASTATION_SCOPE: PRIME_SERVER},
-            WHITELIST_THRESHOLD,
-            BOT_ID,
+            before=Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID)]),
+            after=Member(PLAYER_ID, []),
+            central=central,
+            role_to_causes={DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
+            whitelist_server_types={BANDASTATION_SCOPE: PRIME_SERVER},
+            threshold=WHITELIST_THRESHOLD,
+            admin_discord_id=BOT_ID,
         )
 
         central.revoke_benefits.assert_awaited_once()
@@ -145,34 +154,40 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
         )
 
         await sync_member_update(
-            Member(PLAYER_ID, []),
-            Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID), Role(MENTOR_ROLE_ID)]),
-            central,
-            {
+            before=Member(PLAYER_ID, []),
+            after=Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID), Role(MENTOR_ROLE_ID)]),
+            central=central,
+            role_to_causes={
                 DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE},
                 MENTOR_ROLE_ID: {MENTOR_CAUSE},
             },
-            {BANDASTATION_SCOPE: PRIME_SERVER, LEGACY_SCOPE: PRIME_SERVER},
-            WHITELIST_THRESHOLD,
-            BOT_ID,
+            whitelist_server_types={
+                BANDASTATION_SCOPE: PRIME_SERVER,
+                LEGACY_SCOPE: PRIME_SERVER,
+            },
+            threshold=WHITELIST_THRESHOLD,
+            admin_discord_id=BOT_ID,
         )
 
         self.assertEqual(2, central.grant_benefit.await_count)
         central.give_whitelist_discord.assert_awaited_once_with(
-            PLAYER_ID, BOT_ID, PRIME_SERVER, FOREVER_DAYS
+            player_discord_id=PLAYER_ID,
+            admin_discord_id=BOT_ID,
+            server_type=PRIME_SERVER,
+            duration_days=FOREVER_DAYS,
         )
 
     async def test_unrelated_role_change_does_not_call_central(self):
         central = central_with_benefit_snapshots()
 
         await sync_member_update(
-            Member(PLAYER_ID, []),
-            Member(PLAYER_ID, [Role(UNRELATED_ROLE_ID)]),
-            central,
-            {DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
-            {BANDASTATION_SCOPE: PRIME_SERVER},
-            WHITELIST_THRESHOLD,
-            BOT_ID,
+            before=Member(PLAYER_ID, []),
+            after=Member(PLAYER_ID, [Role(UNRELATED_ROLE_ID)]),
+            central=central,
+            role_to_causes={DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
+            whitelist_server_types={BANDASTATION_SCOPE: PRIME_SERVER},
+            threshold=WHITELIST_THRESHOLD,
+            admin_discord_id=BOT_ID,
         )
 
         central.get_player_active_benefits.assert_not_awaited()

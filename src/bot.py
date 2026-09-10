@@ -395,13 +395,13 @@ def run_bot():
     @client.event
     async def on_member_update(before: discord.Member, after: discord.Member):
         await sync_member_update(
-            before,
-            after,
-            CENTRAL,
-            BENEFIT_ROLE_TO_CAUSES,
-            config["central"]["whitelist_server_types"],
-            config["central"]["benefit_tier_whitelist_threshold"],
-            client.user.id,
+            before=before,
+            after=after,
+            central=CENTRAL,
+            role_to_causes=BENEFIT_ROLE_TO_CAUSES,
+            whitelist_server_types=config["central"]["whitelist_server_types"],
+            threshold=config["central"]["benefit_tier_whitelist_threshold"],
+            admin_discord_id=client.user.id,
         )
 
     async def on_player_link(entry: dict[bytes]):
