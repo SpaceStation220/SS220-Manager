@@ -75,6 +75,25 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
             PLAYER_ID, BOT_ID, PRIME_SERVER, FOREVER_DAYS
         )
 
+    async def test_adding_role_for_qualified_user_keeps_whitelist_unique(self):
+        central = central_with_benefit_snapshots(
+            [Grant(tier=HIGHER_TIER, scope=BANDASTATION_SCOPE)],
+            [Grant(tier=HIGHER_TIER, scope=BANDASTATION_SCOPE)],
+        )
+
+        await sync_member_update(
+            Member(PLAYER_ID, []),
+            Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID)]),
+            central,
+            {DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}},
+            {BANDASTATION_SCOPE: PRIME_SERVER},
+            WHITELIST_THRESHOLD,
+            BOT_ID,
+        )
+
+        central.grant_benefit.assert_awaited_once()
+        central.give_whitelist_discord.assert_not_awaited()
+
     async def test_remove_last_qualifying_grant_removes_whitelist(self):
         central = central_with_benefit_snapshots(
             [Grant(tier=QUALIFYING_TIER, scope=BANDASTATION_SCOPE)], []

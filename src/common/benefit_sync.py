@@ -54,7 +54,7 @@ async def sync_member_update(
         server_types = {
             server_type
             for scope, server_type in whitelist_server_types.items()
-            if should_sync(tiers_after[scope])
+            if should_sync(tiers_before[scope], tiers_after[scope])
         }
         for server_type in server_types:
             await on_result(server_type)
@@ -66,7 +66,7 @@ async def sync_member_update(
     await sync_whitelists(
         removed_causes,
         lambda cause: central.revoke_benefits(after.id, cause),
-        lambda tier: tier < threshold,
+        lambda before, after: before >= threshold > after,
         lambda server_type: central.remove_whitelist_discord(
             after.id, admin_discord_id, server_type
         ),
@@ -79,7 +79,7 @@ async def sync_member_update(
     await sync_whitelists(
         added_causes,
         lambda cause: central.grant_benefit(after.id, cause, "*", 7777),
-        lambda tier: tier >= threshold,
+        lambda before, after: before < threshold <= after,
         lambda server_type: central.give_whitelist_discord(
             after.id, admin_discord_id, server_type, 7777
         ),

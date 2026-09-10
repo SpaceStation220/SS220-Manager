@@ -1,7 +1,7 @@
 import logging
 from aiohttp import ClientSession
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 
 from common.helpers import sanitize_ckey
 
@@ -122,7 +122,7 @@ class Central:
         async with ClientSession() as session:
             for grant in current_grants:
                 body = {
-                    "expiration_time": datetime.now().isoformat()
+                    "expiration_time": datetime.now(timezone.utc).isoformat()
                 }
                 async with session.patch(f"{endpoint}/{grant.id}", json=body, headers={"Authorization": f"Bearer {self.bearer_token}"}) as response:
                     if response.status != 200:
@@ -142,7 +142,7 @@ class Central:
         endpoint = f"{self.endpoint}/v1/whitelists"
         async with ClientSession() as session:
             for whitelist in current_whitelists:
-                body = {"expiration_time": datetime.now().isoformat()}
+                body = {"expiration_time": datetime.now(timezone.utc).isoformat()}
                 async with session.patch(
                     f"{endpoint}/{whitelist.id}",
                     json=body,
