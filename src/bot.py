@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import tasks
 # Includes a lot of other internal libs
 from api.central import Central, Player
-from common.benefit_sync import sync_member_update
+from common.benefit_sync import BenefitSyncConfig, sync_member_update
 from common.discord_helpers import *
 from db.connect import connect_database
 
@@ -35,6 +35,13 @@ MISC_ROLES = config["discord"]["roles"]["servers"]
 BENEFIT_ROLE_TO_CAUSES: dict[int, set[str]] = {}
 for cause, role_id in config["central"].get("benefit_roles", {}).items():
     BENEFIT_ROLE_TO_CAUSES.setdefault(int(role_id), set()).add(cause)
+BENEFIT_SYNC_CONFIG = BenefitSyncConfig(
+    role_to_causes=BENEFIT_ROLE_TO_CAUSES,
+    whitelist_server_types=config["central"]["whitelist_server_types"],
+    threshold=config["central"]["benefit_tier_whitelist_threshold"],
+    admin_discord_id=0,
+    server_type_roles=config["central"]["server_types"],
+)
 CODER_ID = config["discord"]["mentions"]["coder"]
 
 
@@ -394,15 +401,8 @@ def run_bot():
 
     @client.event
     async def on_member_update(before: discord.Member, after: discord.Member):
-        await sync_member_update(
-            before=before,
-            after=after,
-            central=CENTRAL,
-            role_to_causes=BENEFIT_ROLE_TO_CAUSES,
-            whitelist_server_types=config["central"]["whitelist_server_types"],
-            threshold=config["central"]["benefit_tier_whitelist_threshold"],
-            admin_discord_id=client.user.id,
-        )
+        BENEFIT_SYNC_CONFIG.admin_discord_id = client.user.id
+        await sync_member_update(before, after, CENTRAL, BENEFIT_SYNC_CONFIG)
 
     async def on_player_link(entry: dict[bytes]):
         player_json = json.loads(entry["data"].decode())
