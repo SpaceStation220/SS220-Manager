@@ -71,7 +71,7 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
         central.grant_benefit.assert_awaited_once_with(
             discord_id=PLAYER_ID,
             cause=DEVELOPER_CAUSE,
-            scope="*",
+            scopes=["*"],
             duration_days=FOREVER_DAYS,
         )
         central.give_whitelist_discord.assert_awaited_once_with(

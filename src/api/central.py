@@ -81,13 +81,13 @@ class Central:
                 return [Whitelist.model_validate(whitelist) for whitelist in whitelists]
 
     async def grant_benefit(
-        self, discord_id: int, cause: str, scope: str, duration_days: int
+        self, discord_id: int, cause: str, scopes: list[str], duration_days: int
     ) -> list[BenefitGrant]:
         endpoint = f"{self.endpoint}/v1/donates"
         body = {
             "discord_id": str(discord_id),
             "cause": cause,
-            "scope": scope,
+            "scope": scopes,
             "duration_days": duration_days,
         }
         async with ClientSession() as session:
