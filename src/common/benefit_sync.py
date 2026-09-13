@@ -150,7 +150,7 @@ async def sync_member_update(
         action=lambda cause: central.grant_benefit(
             discord_id=after.id,
             cause=cause,
-            scopes=["*"], # resolved to all active scopes by SSC
+            scopes=["*"],  # resolved to all active scopes by SSC
             duration_days=7777,
         ),
         should_sync=lambda before_tier, after_tier: (
