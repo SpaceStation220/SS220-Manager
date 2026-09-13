@@ -37,8 +37,7 @@ for cause, role_id in config["central"].get("benefit_roles", {}).items():
     BENEFIT_ROLE_TO_CAUSES.setdefault(int(role_id), set()).add(cause)
 BENEFIT_SYNC_CONFIG = BenefitSyncConfig(
     role_to_causes=BENEFIT_ROLE_TO_CAUSES,
-    whitelist_server_types=config["central"]["whitelist_server_types"],
-    threshold=config["central"]["benefit_tier_whitelist_threshold"],
+    whitelisted_benefit_causes=config["central"]["whitelisted_benefit_causes"],
     admin_discord_id=0,
     server_type_roles=config["central"]["server_types"],
 )

@@ -12,10 +12,7 @@ MENTOR_ROLE_ID = 2
 UNRELATED_ROLE_ID = 999
 DEVELOPER_CAUSE = "developer@discord"
 MENTOR_CAUSE = "mentor@bandastation"
-BANDASTATION_SCOPE = "bandastation"
-LEGACY_SCOPE = "legacy"
 PRIME_SERVER = "prime"
-WHITELIST_THRESHOLD = 2
 FOREVER_DAYS = 7777
 QUALIFYING_TIER = 2
 HIGHER_TIER = 3
@@ -24,8 +21,7 @@ WHITELIST_ID = 10
 
 SYNC_CONFIG = BenefitSyncConfig(
     role_to_causes={DEVELOPER_ROLE_ID: {DEVELOPER_CAUSE}, MENTOR_ROLE_ID: {MENTOR_CAUSE}},
-    whitelist_server_types={BANDASTATION_SCOPE: PRIME_SERVER},
-    threshold=WHITELIST_THRESHOLD,
+    whitelisted_benefit_causes={DEVELOPER_CAUSE: [PRIME_SERVER], MENTOR_CAUSE: [PRIME_SERVER]},
     admin_discord_id=BOT_ID,
 )
 ROLE_SYNC_CONFIG = replace(SYNC_CONFIG, server_type_roles={PRIME_SERVER: 100})
@@ -59,7 +55,7 @@ class Member:
 @dataclass(frozen=True)
 class Grant:
     tier: int
-    scope: str
+    cause: str
 
 
 def central_with_benefit_snapshots(*snapshots):
@@ -77,7 +73,7 @@ def central_with_benefit_snapshots(*snapshots):
 class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
     async def test_add_grants_benefit_and_whitelist(self):
         central = central_with_benefit_snapshots(
-            [], [Grant(tier=QUALIFYING_TIER, scope=BANDASTATION_SCOPE)]
+            [], [Grant(tier=QUALIFYING_TIER, cause=DEVELOPER_CAUSE)]
         )
 
         after = Member(
@@ -108,8 +104,8 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
 
     async def test_adding_role_for_qualified_user_keeps_whitelist_unique(self):
         central = central_with_benefit_snapshots(
-            [Grant(tier=HIGHER_TIER, scope=BANDASTATION_SCOPE)],
-            [Grant(tier=HIGHER_TIER, scope=BANDASTATION_SCOPE)],
+            [Grant(tier=HIGHER_TIER, cause=DEVELOPER_CAUSE)],
+            [Grant(tier=HIGHER_TIER, cause=DEVELOPER_CAUSE)],
         )
 
         await sync_member_update(
@@ -124,7 +120,7 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
 
     async def test_remove_last_qualifying_grant_removes_whitelist(self):
         central = central_with_benefit_snapshots(
-            [Grant(tier=QUALIFYING_TIER, scope=BANDASTATION_SCOPE)], []
+            [Grant(tier=QUALIFYING_TIER, cause=DEVELOPER_CAUSE)], []
         )
 
         after = Member(PLAYER_ID, [], guild=Guild([Role(100)]))
@@ -148,8 +144,8 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
 
     async def test_removing_lower_grant_keeps_whitelist(self):
         central = central_with_benefit_snapshots(
-            [Grant(tier=HIGHER_TIER, scope=BANDASTATION_SCOPE)],
-            [Grant(tier=HIGHER_TIER, scope=BANDASTATION_SCOPE)],
+            [Grant(tier=HIGHER_TIER, cause=DEVELOPER_CAUSE)],
+            [Grant(tier=HIGHER_TIER, cause=DEVELOPER_CAUSE)],
         )
 
         await sync_member_update(
@@ -162,12 +158,12 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
         central.revoke_benefits.assert_awaited_once()
         central.remove_whitelist_discord.assert_not_awaited()
 
-    async def test_multiple_scopes_mapping_to_one_server_are_deduplicated(self):
+    async def test_multiple_causes_mapping_to_one_server_are_deduplicated(self):
         central = central_with_benefit_snapshots(
             [],
             [
-                Grant(tier=QUALIFYING_TIER, scope=BANDASTATION_SCOPE),
-                Grant(tier=QUALIFYING_TIER, scope=LEGACY_SCOPE),
+                Grant(tier=QUALIFYING_TIER, cause=DEVELOPER_CAUSE),
+                Grant(tier=QUALIFYING_TIER, cause=MENTOR_CAUSE),
             ],
         )
 
@@ -175,15 +171,7 @@ class TestBenefitSync(unittest.IsolatedAsyncioTestCase):
             before=Member(PLAYER_ID, []),
             after=Member(PLAYER_ID, [Role(DEVELOPER_ROLE_ID), Role(MENTOR_ROLE_ID)]),
             central=central,
-            config=BenefitSyncConfig(
-                role_to_causes=SYNC_CONFIG.role_to_causes,
-                whitelist_server_types={
-                    BANDASTATION_SCOPE: PRIME_SERVER,
-                    LEGACY_SCOPE: PRIME_SERVER,
-                },
-                threshold=WHITELIST_THRESHOLD,
-                admin_discord_id=BOT_ID,
-            ),
+            config=SYNC_CONFIG,
         )
 
         self.assertEqual(2, central.grant_benefit.await_count)

@@ -7,12 +7,9 @@ log_level = 20 # INFO
 endpoint = "http://127.0.0.1:8000"
 bearer_token = "12345678"
 
-benefit_tier_whitelist_threshold = 2
-
-[central.whitelist_server_types]
-# benefit scope = server type
-bandastation = "prime"
-legacy = "prime"
+[central.whitelisted_benefit_causes]
+# benefit cause = server types
+"developer@discord" = ["prime"]
 
 [central.server_types]
 # server_type = discord_role_id

@@ -9,41 +9,41 @@ if TYPE_CHECKING:
     import discord
 
     from api.central import Central
-    from api.central import BenefitGrant
 
 
 @dataclass
 class BenefitSyncConfig:
     role_to_causes: Mapping[int, set[str]]
-    whitelist_server_types: Mapping[str, str]
-    threshold: int
+    whitelisted_benefit_causes: Mapping[str, Iterable[str]]
     admin_discord_id: int
     server_type_roles: Mapping[str, int] | None = None
 
 
-async def snapshot_tiers(
+def index_causes_by_server_type(
+    whitelisted_benefit_causes: Mapping[str, Iterable[str]],
+) -> dict[str, set[str]]:
+    result: dict[str, set[str]] = {}
+    for cause, server_types in whitelisted_benefit_causes.items():
+        for server_type in server_types:
+            result.setdefault(server_type, set()).add(cause)
+    return result
+
+
+async def snapshot_whitelist_eligibility(
     central: Central,
     discord_id: int,
-    scopes: Iterable[str],
-) -> dict[str, int]:
+    whitelisted_benefit_causes: Mapping[str, Iterable[str]],
+) -> dict[str, bool]:
     benefits = await central.get_player_active_benefits(discord_id=discord_id)
     return {
-        scope: effective_benefit_tier(benefits, scope)
-        for scope in scopes
+        server_type: any(grant.cause in causes for grant in benefits)
+        for server_type, causes in index_causes_by_server_type(
+            whitelisted_benefit_causes
+        ).items()
     }
 
 
-def effective_benefit_tier(
-    grants: Iterable[BenefitGrant],
-    scope: str | None = None,
-) -> int:
-    return max(
-        (grant.tier for grant in grants if scope is None or grant.scope == scope),
-        default=0,
-    )
-
-
-def causes_for_roles(
+def causes_from_roles(
     role_ids: set[int],
     role_to_causes: Mapping[int, set[str]],
 ) -> set[str]:
@@ -60,31 +60,35 @@ class BenefitSynchronizer:
         self.member = member
         self.config = config
 
-    async def run(self, before: discord.Member) -> None:
+    async def sync_role_change(self, before: discord.Member) -> None:
         before_roles = {role.id for role in before.roles}
         after_roles = {role.id for role in self.member.roles}
 
-        await self._sync_causes(
-            causes_for_roles(
+        await self._sync_benefits_for_causes(
+            causes_from_roles(
                 before_roles - after_roles,
                 self.config.role_to_causes,
             ),
             revoke=True,
         )
-        await self._sync_causes(
-            causes_for_roles(
+        await self._sync_benefits_for_causes(
+            causes_from_roles(
                 after_roles - before_roles,
                 self.config.role_to_causes,
             ),
             revoke=False,
         )
 
-    async def _sync_causes(self, causes: set[str], revoke: bool) -> None:
+    async def _sync_benefits_for_causes(self, causes: set[str], revoke: bool) -> None:
         if not causes:
             return
 
-        scopes = self.config.whitelist_server_types
-        tiers_before = await snapshot_tiers(self.central, self.member.id, scopes)
+        whitelisted_causes = self.config.whitelisted_benefit_causes
+        active_before = await snapshot_whitelist_eligibility(
+            self.central,
+            self.member.id,
+            whitelisted_causes,
+        )
         for cause in causes:
             if revoke:
                 await self.central.revoke_benefits(
@@ -98,29 +102,24 @@ class BenefitSynchronizer:
                     scopes=["*"],  # resolved to all active scopes by SSC
                     duration_days=7777,
                 )
-        tiers_after = await snapshot_tiers(self.central, self.member.id, scopes)
-        logging.debug(
-            "User %s benefit tiers changed from %s to %s",
+        active_after = await snapshot_whitelist_eligibility(
+            self.central,
             self.member.id,
-            tiers_before,
-            tiers_after,
+            whitelisted_causes,
+        )
+        logging.debug(
+            "User %s related benefits changed from %s to %s",
+            self.member.id,
+            active_before,
+            active_after,
         )
 
-        server_types = {
-            server_type
-            for scope, server_type in scopes.items()
-            if self._should_sync(tiers_before[scope], tiers_after[scope], revoke)
-        }
-        for server_type in server_types:
-            await self._sync_whitelist(server_type, revoke)
+        for server_type, before_active in active_before.items():
+            if before_active != active_after[server_type]:
+                await self._sync_server_whitelist(server_type, revoke)
 
-    def _should_sync(self, before: int, after: int, revoke: bool) -> bool:
-        if revoke:
-            return before >= self.config.threshold > after
-        return before < self.config.threshold <= after
-
-    async def _sync_whitelist(self, server_type: str, revoke: bool) -> None:
-        role = self._find_server_role(server_type)
+    async def _sync_server_whitelist(self, server_type: str, revoke: bool) -> None:
+        role = self._get_server_role(server_type)
         if revoke:
             await self.central.remove_whitelist_discord(
                 player_discord_id=self.member.id,
@@ -142,7 +141,7 @@ class BenefitSynchronizer:
             await self.member.add_roles(role)
             logging.info("Added role for %s to %s", server_type, self.member.id)
 
-    def _find_server_role(self, server_type: str):
+    def _get_server_role(self, server_type: str):
         if self.config.server_type_roles is None:
             return None
         role_id = self.config.server_type_roles.get(server_type)
@@ -163,4 +162,4 @@ async def sync_member_update(
 ) -> None:
     if before.roles == after.roles:
         return
-    await BenefitSynchronizer(central, after, config).run(before)
+    await BenefitSynchronizer(central, after, config).sync_role_change(before)
